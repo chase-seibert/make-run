@@ -15,8 +15,25 @@ struct SettingsView: View {
                     Button("Reset") { store.resetFontScale() }
                 }
                 Text("Use Command-plus, Command-minus, and Command-zero from any app window.")
-                    .font(.caption)
+                    .appFont(.caption)
                     .foregroundStyle(.secondary)
+
+                GroupBox("Preview") {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Favorites")
+                            .appFont(.subheadline, weight: .semibold)
+                            .foregroundStyle(.secondary)
+                        Text("Example Project")
+                            .appFont(.body, weight: .medium)
+                        Label("phone-deploy", systemImage: "play.fill")
+                            .appFont(.caption)
+                        Text("Make target description")
+                            .appFont(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 4)
+                }
             }
             .padding(20)
             .tabItem { Label("Appearance", systemImage: "textformat.size") }
@@ -48,6 +65,7 @@ struct SettingsView: View {
             .padding(16)
             .tabItem { Label("Search Folders", systemImage: "folder.badge.gearshape") }
         }
+        .appFont(.body)
         .navigationTitle("Make Run Settings")
     }
 }

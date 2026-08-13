@@ -15,4 +15,7 @@
 - Removed redundant star icons from project rows already grouped in the Favorites section.
 - Fixed a stack-overflow crash when changing font size by replacing a recursively self-mutating observed property with a clamped backing value.
 - Added the selected project's directory path and an Open in Finder action to the project target view.
+- Replaced visible Terminal windows with app-owned background login-Bash processes, direct live-log capture, and immediate process termination handling.
+- Expanded text scaling to explicit proportional macOS fonts across sidebar sections, quick actions, project headings, target lists, descriptions, run metadata, and detail content; added rendered-pixel verification because macOS ignores SwiftUI dynamic type for these desktop styles.
+- Added a live typography preview in Settings and updated verification to render the same production font modifier used throughout the app.
 - Added repository ignore rules for generated Swift, Xcode, macOS, app-bundle, and icon artifacts.

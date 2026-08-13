@@ -37,6 +37,7 @@ final class AppStore {
     private let snapshotURL: URL
     private let runsURL: URL
     @ObservationIgnored private let preferences: UserDefaults
+    @ObservationIgnored private var activeRuns: [UUID: BackgroundProcessLaunch] = [:]
 
     init(preferences: UserDefaults = .standard, monitorRuns: Bool = true) {
         self.preferences = preferences
@@ -295,23 +296,20 @@ final class AppStore {
     }
 
     func run(target: MakeTarget, in project: MakeProject) {
+        let id = UUID()
         do {
-            let id = UUID()
             let runDirectory = runsURL.appendingPathComponent(id.uuidString, isDirectory: true)
             try manager.createDirectory(at: runDirectory, withIntermediateDirectories: true)
             let logURL = runDirectory.appendingPathComponent("output.log")
             let statusURL = runDirectory.appendingPathComponent("exit-code")
-            let scriptURL = runDirectory.appendingPathComponent("Run \(target.name).command")
             let header = "Make Run — \(project.name) / \(target.name)\nDirectory: \(project.directoryPath)\nStarted: \(Date().formatted())\n\n"
-            let script = TerminalScriptBuilder.build(
+            let launch = try BackgroundProcessRunner.prepare(
                 projectDirectory: project.directoryPath,
                 targetName: target.name,
                 logPath: logURL.path,
                 statusPath: statusURL.path,
                 header: header
             )
-            try script.write(to: scriptURL, atomically: true, encoding: .utf8)
-            try manager.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
 
             let record = RunRecord(
                 id: id,
@@ -337,11 +335,37 @@ final class AppStore {
             selectedRunID = id
             save()
 
-            let opener = Process()
-            opener.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-            opener.arguments = ["-a", "Terminal", scriptURL.path]
-            try opener.run()
+            launch.process.terminationHandler = { [weak self] process in
+                let code = process.terminationReason == .exit
+                    ? process.terminationStatus
+                    : 128 + process.terminationStatus
+                Task { @MainActor in
+                    self?.backgroundProcessDidTerminate(runID: id, fallbackCode: code)
+                }
+            }
+            activeRuns[id] = launch
+            do {
+                try launch.process.run()
+                let pidPath = BackgroundProcessRunner.processPIDPath(forStatusPath: statusURL.path)
+                try String(launch.process.processIdentifier).write(
+                    toFile: pidPath, atomically: true, encoding: .utf8)
+            } catch {
+                activeRuns.removeValue(forKey: id)
+                try? launch.logHandle.close()
+                throw error
+            }
         } catch {
+            activeRuns.removeValue(forKey: id)
+            if let index = runs.firstIndex(where: { $0.id == id && $0.state == .running }) {
+                if let handle = FileHandle(forWritingAtPath: runs[index].logPath) {
+                    _ = try? handle.seekToEnd()
+                    try? handle.write(contentsOf: Data("\nMake Run could not start the background process: \(error.localizedDescription)\n".utf8))
+                    try? handle.close()
+                }
+                completeRun(at: index, code: 127, completedAt: .now)
+                save()
+                updateDockBadge()
+            }
             lastError = "Couldn’t start \(target.name): \(error.localizedDescription)"
         }
     }
@@ -366,14 +390,18 @@ final class AppStore {
     private func pollRunningJobs() {
         var completed: [RunRecord] = []
         for index in runs.indices where runs[index].state == .running {
+            if activeRuns[runs[index].id] != nil { continue }
             if let code = readExitCode(at: runs[index].statusPath) {
                 completeRun(at: index, code: code, completedAt: .now)
                 completed.append(runs[index])
                 continue
             }
 
-            let pidPath = TerminalScriptBuilder.launcherPIDPath(forStatusPath: runs[index].statusPath)
-            if let pid = readPID(at: pidPath) {
+            let pidPaths = [
+                BackgroundProcessRunner.processPIDPath(forStatusPath: runs[index].statusPath),
+                runs[index].statusPath + "-launcher-pid",
+            ]
+            if let pid = pidPaths.lazy.compactMap({ self.readPID(at: $0) }).first {
                 if !processExists(pid) {
                     appendInterruptedFooter(to: runs[index].logPath)
                     completeRun(at: index, code: 125, completedAt: .now)
@@ -391,6 +419,17 @@ final class AppStore {
         save()
         updateDockBadge()
         for record in completed { notifyCompletion(record) }
+    }
+
+    private func backgroundProcessDidTerminate(runID: UUID, fallbackCode: Int32) {
+        guard let launch = activeRuns.removeValue(forKey: runID) else { return }
+        try? launch.logHandle.close()
+        guard let index = runs.firstIndex(where: { $0.id == runID && $0.state == .running }) else { return }
+        let code = readExitCode(at: runs[index].statusPath) ?? fallbackCode
+        completeRun(at: index, code: code, completedAt: .now)
+        save()
+        updateDockBadge()
+        notifyCompletion(runs[index])
     }
 
     private func completeRun(at index: Int, code: Int32, completedAt: Date) {
@@ -421,7 +460,7 @@ final class AppStore {
         defer { try? handle.close() }
         do {
             try handle.seekToEnd()
-            try handle.write(contentsOf: Data("\nMake Run launcher ended before reporting an exit code.\n".utf8))
+            try handle.write(contentsOf: Data("\nMake Run process ended before reporting an exit code.\n".utf8))
         } catch {}
     }
 

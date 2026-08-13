@@ -12,6 +12,10 @@ The target browser includes a compact location bar showing the selected project'
 
 The menu bar companion shows favorite projects and a bounded list of recent projects. Notifications state project, target, and outcome and open the corresponding saved log. Command-plus, Command-minus, and Command-zero control a persisted content scale also available in Settings.
 
+Text scaling is app-wide: each semantic desktop text role receives an explicit proportional point size for sidebar sections, project names, quick-target pills, project headings, target names and descriptions, run metadata, controls, and detail content. This is explicit because macOS SwiftUI does not resize these desktop styles through `dynamicTypeSize`. The monospaced console uses the same proportional scale directly.
+
+Appearance Settings includes a live representative preview of a section heading, project name, quick-target label, and description so the selected scale can be verified before returning to the main window.
+
 Recursive indexing immediately shows a searching state, publishes projects as soon as filesystem discovery completes, and then displays a second-phase description-loading status. Selecting an ancestor search folder automatically removes redundant descendant roots.
 
 Run output uses a native read-only macOS text view with monospaced preformatted text, preserved spaces, tabs, and line breaks, vertical scrolling, selectable text, Find support, and smart wrapping without horizontal scrolling. Logs initially open at the newest output; live output continues following the bottom only while the user is already near it.

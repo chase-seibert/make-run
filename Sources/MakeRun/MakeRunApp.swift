@@ -31,6 +31,7 @@ struct MakeRunApp: App {
         Settings {
             SettingsView(store: store)
                 .frame(width: 560, height: 420)
+                .environment(\.fontScale, store.fontScale)
         }
     }
 }
@@ -86,7 +87,7 @@ struct AppCommands: Commands {
             Button("Make Run Help") {
                 let alert = NSAlert()
                 alert.messageText = "Make Run Help"
-                alert.informativeText = "Add a search folder with Command-O, select a project and target, then press Command-Return to run it in Terminal. Use the sidebar or menu bar item for quick runs. Completed output remains available under Recent Runs."
+                alert.informativeText = "Add a search folder with Command-O, select a project and target, then press Command-Return to run it. Use the sidebar or menu bar item for quick runs. Live and completed output remains available under Recent Runs."
                 alert.addButton(withTitle: "OK")
                 alert.runModal()
             }

@@ -1,6 +1,6 @@
 # Make Run
 
-Make Run is a native macOS command center for Makefile projects. Pick one or more folders, let the app index projects and targets, then run common targets from the main window or menu bar. Commands open in Terminal.app using interactive login Bash while their output and exit code are captured for later review.
+Make Run is a native macOS command center for Makefile projects. Pick one or more folders, let the app index projects and targets, then run common targets from the main window or menu bar. Commands run as app-owned background login-Bash processes while their live output and exit code are captured for review.
 
 ## Development
 

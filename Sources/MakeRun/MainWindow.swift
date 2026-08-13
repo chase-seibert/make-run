@@ -3,7 +3,6 @@ import SwiftUI
 
 struct MainWindow: View {
     @Bindable var store: AppStore
-    @Environment(\.fontScale) private var fontScale
 
     var body: some View {
         NavigationSplitView {
@@ -15,7 +14,7 @@ struct MainWindow: View {
         } detail: {
             DetailPane(store: store)
         }
-        .font(.system(size: 13 * fontScale))
+        .appFont(.body)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
                 if store.isIndexing {
@@ -75,18 +74,22 @@ private struct ProjectSidebar: View {
                     set: { store.selectProject($0) }
                 )) {
                     if !store.favoriteProjects.isEmpty {
-                        Section("Favorites") {
+                        Section {
                             ForEach(store.favoriteProjects) { project in
                                 ProjectRow(store: store, project: project)
                                     .tag(project.id)
                             }
+                        } header: {
+                            ScaledSectionHeader("Favorites")
                         }
                     }
-                    Section("Projects") {
+                    Section {
                         ForEach(store.otherProjects) { project in
                             ProjectRow(store: store, project: project)
                                 .tag(project.id)
                         }
+                    } header: {
+                        ScaledSectionHeader("Projects")
                     }
                 }
                 .listStyle(.sidebar)
@@ -94,7 +97,7 @@ private struct ProjectSidebar: View {
                     if store.isIndexing, let status = store.indexingStatus {
                         HStack(spacing: 8) {
                             ProgressView().controlSize(.small)
-                            Text(status).font(.caption).foregroundStyle(.secondary)
+                            Text(status).appFont(.caption).foregroundStyle(.secondary)
                             Spacer()
                         }
                         .padding(.horizontal, 10)
@@ -119,6 +122,7 @@ private struct ProjectSidebar: View {
 private struct ProjectRow: View {
     let store: AppStore
     let project: MakeProject
+    @Environment(\.fontScale) private var fontScale
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -128,13 +132,13 @@ private struct ProjectRow: View {
                         .foregroundStyle(.secondary)
                 }
                 Text(project.name)
-                    .fontWeight(.medium)
+                    .appFont(.body, weight: .medium)
                     .lineLimit(1)
                 Spacer(minLength: 4)
                 let unread = store.unreadCount(for: project.id)
                 if unread > 0 {
                     Text("\(unread)")
-                        .font(.caption2.bold())
+                        .appFont(.caption2, weight: .bold)
                         .foregroundStyle(.white)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
@@ -150,12 +154,12 @@ private struct ProjectRow: View {
                             store.run(target: target, in: project)
                         } label: {
                             Label(target.name, systemImage: "play.fill")
-                                .font(.caption)
+                                .appFont(.caption)
                                 .lineLimit(1)
                                 .truncationMode(.middle)
                         }
                         .buttonStyle(.bordered)
-                        .controlSize(.mini)
+                        .controlSize(AppTypography.quickActionControlSize(for: fontScale))
                         .help("Run make \(target.name)")
                     }
                 }
@@ -194,22 +198,28 @@ private struct TargetBrowser: View {
                 List {
                     let favorites = filteredTargets.filter(\.isFavorite).sorted(by: targetOrder)
                     if !favorites.isEmpty {
-                        Section("Favorite Targets") {
+                        Section {
                             ForEach(favorites) { target in TargetRow(store: store, project: project, target: target) }
+                        } header: {
+                            ScaledSectionHeader("Favorite Targets")
                         }
                     }
 
                     let recent = Array(store.runs(for: project.id).prefix(10))
                     if !recent.isEmpty, store.searchText.isEmpty {
-                        Section("Recent Runs") {
+                        Section {
                             ForEach(recent) { run in RunRow(store: store, run: run) }
+                        } header: {
+                            ScaledSectionHeader("Recent Runs")
                         }
                     }
 
-                    Section("All Targets") {
+                    Section {
                         ForEach(filteredTargets.sorted(by: targetOrder)) { target in
                             TargetRow(store: store, project: project, target: target)
                         }
+                    } header: {
+                        ScaledSectionHeader("All Targets")
                     }
                 }
                 .navigationTitle(project.name)
@@ -233,25 +243,30 @@ private struct ProjectLocationBar: View {
     let project: MakeProject
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "folder")
-                .foregroundStyle(.secondary)
-            Text(project.directoryPath)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 3) {
+            Text(project.name)
+                .appFont(.headline, weight: .semibold)
                 .lineLimit(1)
-                .truncationMode(.middle)
-                .textSelection(.enabled)
-                .help(project.directoryPath)
-            Spacer(minLength: 8)
-            Button {
-                store.openProjectFolder(project)
-            } label: {
-                Image(systemName: "arrow.up.forward.square")
+            HStack(spacing: 8) {
+                Image(systemName: "folder")
+                    .foregroundStyle(.secondary)
+                Text(project.directoryPath)
+                    .appFont(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .textSelection(.enabled)
+                    .help(project.directoryPath)
+                Spacer(minLength: 8)
+                Button {
+                    store.openProjectFolder(project)
+                } label: {
+                    Image(systemName: "arrow.up.forward.square")
+                }
+                .buttonStyle(.borderless)
+                .help("Open project folder in Finder")
+                .accessibilityLabel("Open project folder in Finder")
             }
-            .buttonStyle(.borderless)
-            .help("Open project folder in Finder")
-            .accessibilityLabel("Open project folder in Finder")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
@@ -274,9 +289,9 @@ private struct TargetRow: View {
                     .foregroundStyle(target.isFavorite ? .yellow : .secondary)
                     .frame(width: 16)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(target.name).fontWeight(.medium)
+                    Text(target.name).appFont(.body, weight: .medium)
                     Text(target.targetDescription)
-                        .font(.caption)
+                        .appFont(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
@@ -311,7 +326,7 @@ private struct RunRow: View {
             HStack(spacing: 8) {
                 RunStatusIcon(state: run.state)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(run.targetName).lineLimit(1)
+                    Text(run.targetName).appFont(.body).lineLimit(1)
                     RunDurationLabel(run: run)
                 }
                 Spacer()
@@ -337,10 +352,27 @@ private struct RunDurationLabel: View {
             }
             .foregroundStyle(.blue)
             .accessibilityLabel("Running for \(RunDurationFormatter.string(for: run.elapsed()))")
+            .appFont(.caption)
         } else {
             Text("\(run.state.label) · \(RunDurationFormatter.string(for: run.elapsed()))")
                 .foregroundStyle(.secondary)
+                .appFont(.caption)
         }
+    }
+}
+
+private struct ScaledSectionHeader: View {
+    let title: String
+
+    init(_ title: String) {
+        self.title = title
+    }
+
+    var body: some View {
+        Text(title)
+            .appFont(.subheadline, weight: .semibold)
+            .foregroundStyle(.secondary)
+            .textCase(nil)
     }
 }
 

@@ -29,9 +29,9 @@ private struct TargetDetail: View {
             VStack(alignment: .leading, spacing: 22) {
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 5) {
-                        Text(target.name).font(.largeTitle.bold())
+                        Text(target.name).appFont(.largeTitle, weight: .bold)
                         Text("make \(target.name)")
-                            .font(.system(.body, design: .monospaced))
+                            .appFont(.body, design: .monospaced)
                             .foregroundStyle(.secondary)
                             .textSelection(.enabled)
                     }
@@ -45,7 +45,7 @@ private struct TargetDetail: View {
                     Button {
                         store.run(target: target, in: project)
                     } label: {
-                        Label("Run in Terminal", systemImage: "play.fill")
+                        Label("Run", systemImage: "play.fill")
                     }
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.return, modifiers: .command)
@@ -53,6 +53,7 @@ private struct TargetDetail: View {
 
                 GroupBox("Description") {
                     Text(target.targetDescription)
+                        .appFont(.body)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 4)
                 }
@@ -70,7 +71,7 @@ private struct TargetDetail: View {
                 let targetRuns = store.runs(for: project.id, targetID: target.id)
                 if !targetRuns.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Recent Runs").font(.headline)
+                        Text("Recent Runs").appFont(.headline, weight: .semibold)
                         ForEach(targetRuns.prefix(12)) { run in
                             Button { store.openRun(run.id) } label: {
                                 HStack {
@@ -105,7 +106,7 @@ private struct RunDetail: View {
             HStack(spacing: 12) {
                 RunStatusPill(state: run.state)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("\(run.projectName) / \(run.targetName)").font(.headline)
+                    Text("\(run.projectName) / \(run.targetName)").appFont(.headline, weight: .semibold)
                     HStack(spacing: 5) {
                         Text(run.startedAt.formatted(date: .abbreviated, time: .standard))
                         Text("·")
@@ -117,7 +118,7 @@ private struct RunDetail: View {
                             Text(RunDurationFormatter.string(for: run.elapsed()))
                         }
                     }
-                    .font(.caption).foregroundStyle(.secondary)
+                    .appFont(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
                 if let exitCode = run.exitCode {
@@ -156,7 +157,7 @@ private struct RunStatusPill: View {
 
     var body: some View {
         Label(state.label, systemImage: icon)
-            .font(.caption.bold())
+            .appFont(.caption, weight: .bold)
             .foregroundStyle(color)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
