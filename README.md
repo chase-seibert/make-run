@@ -2,6 +2,8 @@
 
 Make Run is a native macOS command center for Makefile projects. Pick one or more folders, let the app index projects and targets, then run common targets from the main window or menu bar. Commands run as app-owned background login-Bash processes while their live output and exit code are captured for review.
 
+![Make Run showing project targets and a completed run](docs/images/make-run-screenshot.png)
+
 ## Development
 
 Requires macOS 14 or newer and Xcode 16 or newer.
