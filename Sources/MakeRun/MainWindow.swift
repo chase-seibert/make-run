@@ -47,6 +47,15 @@ struct MainWindow: View {
 
 private struct ProjectSidebar: View {
     @Bindable var store: AppStore
+    @FocusState private var projectSearchIsFocused: Bool
+
+    private var visibleFavoriteProjects: [MakeProject] {
+        store.favoriteProjects.filter { store.matchingProjects.contains($0) }
+    }
+
+    private var visibleOtherProjects: [MakeProject] {
+        store.otherProjects.filter { store.matchingProjects.contains($0) }
+    }
 
     var body: some View {
         Group {
@@ -69,45 +78,83 @@ private struct ProjectSidebar: View {
                     Button("Add Search Folder…", action: store.chooseSearchFolder)
                 }
             } else {
-                List(selection: Binding(
-                    get: { store.selectedProjectID },
-                    set: { store.selectProject($0) }
-                )) {
-                    if !store.favoriteProjects.isEmpty {
+                ScrollViewReader { proxy in
+                    List(selection: Binding(
+                        get: { store.selectedProjectID },
+                        set: { store.selectProject($0) }
+                    )) {
+                        if !visibleFavoriteProjects.isEmpty {
+                            Section {
+                                ForEach(visibleFavoriteProjects) { project in
+                                    ProjectRow(store: store, project: project)
+                                        .tag(project.id)
+                                }
+                            } header: {
+                                ScaledSectionHeader("Favorites")
+                            }
+                        }
                         Section {
-                            ForEach(store.favoriteProjects) { project in
+                            ForEach(visibleOtherProjects) { project in
                                 ProjectRow(store: store, project: project)
                                     .tag(project.id)
                             }
                         } header: {
-                            ScaledSectionHeader("Favorites")
+                            ScaledSectionHeader("Projects")
                         }
                     }
-                    Section {
-                        ForEach(store.otherProjects) { project in
-                            ProjectRow(store: store, project: project)
-                                .tag(project.id)
+                    .listStyle(.sidebar)
+                    .onChange(of: store.projectSearchDismissRequest) { _, _ in
+                        projectSearchIsFocused = false
+                        guard let selectedProjectID = store.selectedProjectID else { return }
+                        DispatchQueue.main.async {
+                            proxy.scrollTo(selectedProjectID, anchor: .center)
                         }
-                    } header: {
-                        ScaledSectionHeader("Projects")
                     }
-                }
-                .listStyle(.sidebar)
-                .safeAreaInset(edge: .top) {
-                    if store.isIndexing, let status = store.indexingStatus {
-                        HStack(spacing: 8) {
-                            ProgressView().controlSize(.small)
-                            Text(status).appFont(.caption).foregroundStyle(.secondary)
-                            Spacer()
+                    .safeAreaInset(edge: .top) {
+                        VStack(spacing: 0) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundStyle(.secondary)
+                                TextField("Find projects", text: $store.projectSearchText)
+                                    .textFieldStyle(.roundedBorder)
+                                    .focused($projectSearchIsFocused)
+                                    .onChange(of: store.projectSearchText) { _, _ in
+                                        store.selectFirstProjectMatchingSearch()
+                                    }
+                                if !store.projectSearchText.isEmpty {
+                                    Button {
+                                        store.projectSearchText = ""
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                    }
+                                    .buttonStyle(.borderless)
+                                    .foregroundStyle(.secondary)
+                                    .help("Clear project search")
+                                }
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 7)
+                            .background(.bar)
+
+                            if store.isIndexing, let status = store.indexingStatus {
+                                HStack(spacing: 8) {
+                                    ProgressView().controlSize(.small)
+                                    Text(status).appFont(.caption).foregroundStyle(.secondary)
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 7)
+                                .background(.bar)
+                            }
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 7)
-                        .background(.bar)
                     }
                 }
             }
         }
         .navigationTitle("Projects")
+        .onChange(of: store.projectSearchFocusRequest) { _, _ in
+            projectSearchIsFocused = true
+        }
         .toolbar {
             ToolbarItem(placement: .automatic) {
                 if store.unreadCount > 0 {
@@ -149,14 +196,21 @@ private struct ProjectRow: View {
             let quick = store.quickTargets(for: project)
             if !quick.isEmpty {
                 HStack(spacing: 5) {
-                    ForEach(quick) { target in
+                    ForEach(Array(quick.enumerated()), id: \.element.id) { index, target in
                         Button {
                             store.run(target: target, in: project)
                         } label: {
-                            Label(target.name, systemImage: "play.fill")
-                                .appFont(.caption)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
+                            HStack(spacing: 4) {
+                                Label(target.name, systemImage: "play.fill")
+                                    .appFont(.caption)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                if store.selectedProjectID == project.id {
+                                    Text("⌘\(index + 1)")
+                                        .appFont(.caption2, weight: .semibold)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
                         }
                         .buttonStyle(.bordered)
                         .controlSize(AppTypography.quickActionControlSize(for: fontScale))

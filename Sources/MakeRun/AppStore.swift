@@ -18,6 +18,9 @@ final class AppStore {
     var selectedTargetID: UUID?
     var selectedRunID: UUID?
     var searchText = ""
+    var projectSearchText = ""
+    var projectSearchFocusRequest = 0
+    var projectSearchDismissRequest = 0
     var isIndexing = false
     var indexingStatus: String?
     var lastError: String?
@@ -93,6 +96,17 @@ final class AppStore {
             if lhs == rhs { return projectNameOrder($0, $1) }
             return lhs > rhs
         }
+    }
+
+    var projectSearchQuery: String {
+        let trimmed = projectSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.first == "/" else { return trimmed }
+        return String(trimmed.dropFirst()).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var matchingProjects: [MakeProject] {
+        guard !projectSearchQuery.isEmpty else { return projects }
+        return projects.filter { $0.name.localizedCaseInsensitiveContains(projectSearchQuery) }
     }
 
     var selectedProject: MakeProject? {
@@ -225,6 +239,39 @@ final class AppStore {
             if result.count == 3 { break }
         }
         return Array(result.prefix(3))
+    }
+
+    func quickTarget(at index: Int, for project: MakeProject) -> MakeTarget? {
+        guard index >= 0 else { return nil }
+        return quickTargets(for: project).dropFirst(index).first
+    }
+
+    func selectedQuickTarget(at index: Int) -> MakeTarget? {
+        guard let project = selectedProject else { return nil }
+        return quickTarget(at: index, for: project)
+    }
+
+    func runQuickTarget(at index: Int) {
+        guard let project = selectedProject,
+              let target = quickTarget(at: index, for: project) else { return }
+        dismissProjectSearch()
+        run(target: target, in: project)
+    }
+
+    func requestProjectSearchFocus() {
+        projectSearchFocusRequest += 1
+    }
+
+    func dismissProjectSearch() {
+        projectSearchText = ""
+        projectSearchDismissRequest += 1
+    }
+
+    func selectFirstProjectMatchingSearch() {
+        guard !projectSearchQuery.isEmpty,
+              let project = matchingProjects.sorted(by: projectNameOrder).first else { return }
+        guard selectedProjectID != project.id else { return }
+        selectProject(project.id)
     }
 
     func runs(for projectID: UUID) -> [RunRecord] {

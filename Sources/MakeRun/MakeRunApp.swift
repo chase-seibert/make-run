@@ -51,6 +51,11 @@ struct AppCommands: Commands {
     let store: AppStore
 
     var body: some Commands {
+        CommandMenu("Navigate") {
+            Button("Find Project") { store.requestProjectSearchFocus() }
+                .keyboardShortcut("/", modifiers: [])
+        }
+
         CommandGroup(after: .newItem) {
             Button("Add Search Folder…") { store.chooseSearchFolder() }
                 .keyboardShortcut("o", modifiers: .command)
@@ -67,6 +72,17 @@ struct AppCommands: Commands {
             }
             .keyboardShortcut(.return, modifiers: .command)
             .disabled(store.selectedProject == nil || store.selectedTarget == nil)
+
+            Divider()
+            Button(quickRunTitle(at: 0)) { store.runQuickTarget(at: 0) }
+                .keyboardShortcut("1", modifiers: .command)
+                .disabled(store.selectedQuickTarget(at: 0) == nil)
+            Button(quickRunTitle(at: 1)) { store.runQuickTarget(at: 1) }
+                .keyboardShortcut("2", modifiers: .command)
+                .disabled(store.selectedQuickTarget(at: 1) == nil)
+            Button(quickRunTitle(at: 2)) { store.runQuickTarget(at: 2) }
+                .keyboardShortcut("3", modifiers: .command)
+                .disabled(store.selectedQuickTarget(at: 2) == nil)
 
             Divider()
             Button("Mark All Runs as Read") { store.markAllRead() }
@@ -92,5 +108,12 @@ struct AppCommands: Commands {
                 alert.runModal()
             }
         }
+    }
+
+    private func quickRunTitle(at index: Int) -> String {
+        guard let target = store.selectedQuickTarget(at: index) else {
+            return "Run Quick Target \(index + 1)"
+        }
+        return "Run \(target.name)"
     }
 }
